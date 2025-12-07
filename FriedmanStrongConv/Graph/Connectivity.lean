@@ -54,10 +54,10 @@ protected theorem Reachable.trans {x y z : α} (hxy : G.Reachable x y) (hyz : G.
     G.Reachable x z :=
   hxy.elim fun pxy => hyz.elim fun pyz => ⟨pxy.append pyz⟩
 
-variable (G)
-
 theorem reachable_is_equivalence : Equivalence G.Reachable :=
-  Equivalence.mk (Reachable.refl (G := G)) (Reachable.symm (G := G)) (Reachable.trans (G := G))
+  Equivalence.mk Reachable.refl Reachable.symm Reachable.trans
+
+variable (G)
 
 def Connected (U : Set α) := U ⊆ V(G) ∧ ∀x y, x ∈ U ∧ y ∈ U -> G.Reachable x y
 
@@ -88,13 +88,6 @@ lemma eq_or_inVG_of_reachable (hxy : G.Reachable x y) : x = y ∨ (x ∈ V(G) �
     . have xinVG := h.left_mem
       exact ⟨xinVG, zinVG⟩
 
-lemma not_reachable_of_different_or_ninVG (h : ¬(x = y ∨ (x ∈ V(G) ∧ y ∈ V(G)))) : ¬G.Reachable x y := by
-  intro hxy
-  apply h
-  rcases eq_or_inVG_of_reachable G hxy with xeqy | inVG
-  exact Or.inl xeqy
-  exact Or.inr inVG
-
 -- gets a set that is the ConnectedComponent of G in which x ∈ V(G) resides
 def cc (x : α) : Set α := { y | G.Reachable x y }
 
@@ -124,17 +117,7 @@ lemma connected_component_cc (xinVG : x ∈ V(G)) : ConnectedComponent G (cc G x
     have yinU : y ∈ (cc G x) := hxy
     exact yninU yinU
 
--- I don't like this definition: I'm pretty sure it only goes one-way
-theorem cc_equivalence_class₁ : ∀x, x ∈ V(G) -> ∃U, x ∈ U ∧ ConnectedComponent G U ∧ ∀y, G.Reachable x y <-> y ∈ U := by
-  intro x xinVG
-  exists cc G x
-  apply And.intro (mem_cc G x)
-  apply And.intro (connected_component_cc G xinVG)
-  intro y
-  exact Eq.to_iff rfl
-
 -- if U is connected, and there is some x reachable from y, the U ∪ {y} is also connected
--- TODO: probably want a version that takes two arbitrary sets U and U' rather than one set U and a singleton { y }
 lemma including_connected {U : Set α} (hU : Connected G U) (xinU : x ∈ U) (hxy : G.Reachable x y) : Connected G (U ∪ { y }) := by
   rcases eq_or_inVG_of_reachable G hxy with xeqy | ⟨xinVG, yinVG⟩
   . have h : U ∪ { y } = U := by
