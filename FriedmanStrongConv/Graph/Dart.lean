@@ -54,24 +54,70 @@ lemma snd_of_reverse (d : G.Dart) : d.reverse.snd = d.fst := rfl
 /-- The edge is unchanged upon reversing the dart. -/
 lemma edge_of_reverse (d : G.Dart) : d.reverse.edge = d.edge := rfl
 
-/-- The reverse of a dart is distinct from the dart. -/
+/- The reverse of a dart is distinct from the dart. -/
 lemma reverse_neq_self (d : G.Dart) : d.reverse ≠ d := by
   by_cases h : d.fst = d.snd
-  · sorry
-  · sorry
+  · intro hf
+    let ho : d.reverse.orienOfEq h.symm = d.orienOfEq h := by congr
+    have nho : d.reverse.orienOfEq h.symm ≠ d.orienOfEq h := Bool.eq_not.mp rfl
+    exact nho ho
+  · intro hf
+    have nh : d.reverse.fst = d.snd := rfl
+    rw [hf] at nh
+    exact h nh
 
-/-- The reverse of the reverse of a dart is the dart itself. -/
-lemma reverse_of_reverse (d : G.Dart) : d.reverse.reverse = d := sorry
+/- The reverse of the reverse of a dart is the dart itself. -/
+lemma reverse_of_reverse (d : G.Dart) : d.reverse.reverse = d := by
+  rcases d with ⟨fst, snd, edge, isLink, orienOfEq⟩
+  unfold reverse
+  congr
+  change (fun h ↦ !!orienOfEq _) = orienOfEq
+  ext
+  rw [Bool.not_not]
 
 end Dart
 
 /-- The dartset of a vertex is the set of darts starting at this vertex. -/
 def dartSet (x : α) : Set G.Dart := {d | d.fst = x}
 
-lemma dart_of_edge (e : E(G)) : ∃ d : G.Dart, d.edge = e := sorry
+/- There exists a dart for any edge. -/
+lemma dart_of_edge (e : E(G)) : ∃ d : G.Dart, d.edge = e := by
+  have ⟨e, he⟩ := e
+  have ⟨x, y, he⟩ := (G.edge_mem_iff_exists_isLink e).mp he
+  exists
+  {
+    fst := x
+    snd := y
+    edge := e
+    isLink := he
+    orienOfEq := (fun _ => true)
+  }
 
-/-- Two darts have the same edge iff they are equal or reverse of one another. -/
-lemma edge_dart_eq_iff {d₁ d₂ : G.Dart} (h : d₁.edge = d₂.edge) : d₁ = d₂ ∨ d₁ = d₂.reverse := sorry
+/- Two darts are equal or reverse of one another if they have the same edge. -/
+lemma edge_dart_eq {d₁ d₂ : G.Dart} (h : d₁.edge = d₂.edge) : d₁ = d₂ ∨ d₁ = d₂.reverse := by
+  by_cases eq : d₁ = d₂
+  . exact Or.inl eq
+  . right
+    by_cases loop : d₁.fst = d₁.snd
+    . rcases IsLink.eq_and_eq_or_eq_and_eq d₁.isLink (h ▸ d₂.isLink) with ⟨hff, hss⟩ | ⟨hfs, hsf⟩
+      . admit
+      . admit
+    . rcases IsLink.eq_and_eq_or_eq_and_eq d₁.isLink (h ▸ d₂.isLink) with ⟨hff, hss⟩ | ⟨hfs, hsf⟩
+      . admit
+      . apply Dart.ext <;> try trivial
+        admit
+
+/- Two darts have the same edge if they are equal or reverse of one another. -/
+lemma edge_dart_eq' {d₁ d₂ : G.Dart} (h : d₁ = d₂ ∨ d₁ = d₂.reverse) : d₁.edge = d₂.edge := by
+  rcases h with eq | rev
+  . exact eq ▸ (Eq.refl d₁.edge)
+  . exact rev ▸ (Dart.edge_of_reverse d₂)
+
+/- Two darts have the same edge iff they are equal or reverse of one another. -/
+lemma edge_dart_eq_iff {d₁ d₂ : G.Dart} : (d₁.edge = d₂.edge) ↔ d₁ = d₂ ∨ d₁ = d₂.reverse := by
+  constructor <;> intro lhs
+  . exact edge_dart_eq lhs
+  . exact edge_dart_eq' lhs
 
 /-- An edge is incident to a vertex iff there is a dart starting at this vertex
 carried by this edge.-/
