@@ -93,19 +93,42 @@ lemma dart_of_edge (e : E(G)) : ∃ d : G.Dart, d.edge = e := by
     orienOfEq := (fun _ => true)
   }
 
+lemma non_loop_orienOfEq_eq {d₁ d₂ : G.Dart} (h₁ : d₁.fst ≠ d₁.snd) (h₂ : d₂.fst ≠ d₂.snd) : d₁.orienOfEq ≍ d₂.orienOfEq := by
+  apply heq_of_eqRec_eq
+  . ext hn
+    contradiction
+  . rw [eq_false h₁, eq_false h₂]
+
 /- Two darts are equal or reverse of one another if they have the same edge. -/
 lemma edge_dart_eq {d₁ d₂ : G.Dart} (h : d₁.edge = d₂.edge) : d₁ = d₂ ∨ d₁ = d₂.reverse := by
   by_cases eq : d₁ = d₂
   . exact Or.inl eq
   . right
-    by_cases loop : d₁.fst = d₁.snd
+    by_cases isLoop : d₁.fst = d₁.snd
     . rcases IsLink.eq_and_eq_or_eq_and_eq d₁.isLink (h ▸ d₂.isLink) with ⟨hff, hss⟩ | ⟨hfs, hsf⟩
-      . admit
-      . admit
+      . apply Dart.ext
+        . change d₁.fst = d₂.snd
+          rw [isLoop]
+          exact hss
+        . change d₁.snd = d₂.fst
+          rw [<- isLoop]
+          exact hff
+        . exact h
+        . admit
+      . apply Dart.ext
+        . exact hfs
+        . exact hsf
+        . exact h
+        . admit
     . rcases IsLink.eq_and_eq_or_eq_and_eq d₁.isLink (h ▸ d₂.isLink) with ⟨hff, hss⟩ | ⟨hfs, hsf⟩
-      . admit
-      . apply Dart.ext <;> try trivial
-        admit
+      . exfalso
+        apply eq
+        apply Dart.ext <;> try assumption
+        have isLoop₂ := (hff ▸ hss ▸ isLoop) -- for some reason I can't inline this... not that I _want_ to inline it, but why can't I?!
+        exact non_loop_orienOfEq_eq isLoop isLoop₂
+      . apply Dart.ext <;> try assumption
+        have isLoop₂ := (hfs ▸ hsf ▸ isLoop) -- for some reason I can't inline this... not that I _want_ to inline it, but why can't I?!
+        exact non_loop_orienOfEq_eq isLoop isLoop₂
 
 /- Two darts have the same edge if they are equal or reverse of one another. -/
 lemma edge_dart_eq' {d₁ d₂ : G.Dart} (h : d₁ = d₂ ∨ d₁ = d₂.reverse) : d₁.edge = d₂.edge := by
