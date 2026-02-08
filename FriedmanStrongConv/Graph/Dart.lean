@@ -62,9 +62,8 @@ def orienOfEq (d : G.Dart) (eq : d.fst = d.snd) : Bool :=
   | .Fwd _ _ _ => true
   | .Bck _ _ _ => false
   | .Dir x y _ ne _ => by
-    change x = y at eq
-    exfalso
-    exact ne eq
+    cases eq
+    trivial
 
 lemma fst_mem (d : G.Dart) : d.fst ∈ V(G) := d.isLink.left_mem
 
@@ -196,3 +195,7 @@ lemma Inc_iff_exists_dart {x : α} {e : β} :
 /-- The IsDartLink relation is the dart version of IsLink, meaning `IsDartLink d x y`
 iff `d` is a dart starting at `x` and ending at `y`.-/
 def IsDartLink (d : G.Dart) (x y : α) := x = d.fst ∧ y = d.snd
+
+lemma IsLink_edge_of_IsDartLink {d : G.Dart} {x y : α} (h : IsDartLink d x y) : G.IsLink d.edge x y := by
+  rcases h with ⟨rfl, rfl⟩ -- this is fun: you can drop rfl in to immediately destruct it
+  exact Dart.isLink d
