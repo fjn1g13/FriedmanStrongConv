@@ -23,7 +23,7 @@ variable {G : Graph α β}
 
 /-- A dart is describes a possible direction for a walk starting at one point.
 In order to count walks correctly, we adopt the convention that each loop
-can be taken in two distinct directions, which are encoded in Fwd and Bck
+can be taken in two distinct directions, which are encoded by the fwd boolean
 and then surfaced by orienOfEq. -/
 inductive Dart
   | Loop : (x : α) -> (e : β) -> (isLoop : G.IsLoopAt e x) -> (fwd : Bool) -> Dart
