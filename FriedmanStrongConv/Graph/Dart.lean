@@ -26,8 +26,7 @@ In order to count walks correctly, we adopt the convention that each loop
 can be taken in two distinct directions, which are encoded in Fwd and Bck
 and then surfaced by orienOfEq. -/
 inductive Dart
-  | Fwd : (x : α) -> (e : β) -> (isLoop : G.IsLoopAt e x) -> Dart
-  | Bck : (x : α) -> (e : β) -> (isLoop : G.IsLoopAt e x) -> Dart
+  | Loop : (x : α) -> (e : β) -> (isLoop : G.IsLoopAt e x) -> (fwd : Bool) -> Dart
   | Dir : (x y : α) -> (e : β) -> (ne : x ≠ y) -> (isLink : G.IsLink e x y) -> Dart
 
 namespace Dart
@@ -35,32 +34,27 @@ namespace Dart
 /- Interface from the structure -/
 def fst (d : G.Dart) : α :=
   match d with
-  | .Fwd x _ _ => x
-  | .Bck x _ _ => x
+  | .Loop x _ _ _ => x
   | .Dir x _ _ _ _ => x
 
 def snd (d : G.Dart) : α :=
   match d with
-  | .Fwd x _ _ => x
-  | .Bck x _ _ => x
+  | .Loop x _ _ _ => x
   | .Dir _ y _ _ _ => y
 
 def edge (d : G.Dart) : β :=
   match d with
-  | .Fwd _ e _ => e
-  | .Bck _ e _ => e
+  | .Loop _ e _ _ => e
   | .Dir _ _ e _ _ => e
 
 def isLink (d : G.Dart) : G.IsLink d.edge d.fst d.snd :=
   match d with
-  | .Fwd _ _ l => l
-  | .Bck _ _ l => l
+  | .Loop _ _ l _ => l
   | .Dir _ _ _ _ l => l
 
 def orienOfEq (d : G.Dart) (eq : d.fst = d.snd) : Bool :=
   match d with
-  | .Fwd _ _ _ => true
-  | .Bck _ _ _ => false
+  | .Loop _ _ _ b => b
   | .Dir x y _ ne _ => by
     cases eq
     trivial
@@ -74,8 +68,7 @@ lemma edge_mem (d : G.Dart) : d.edge ∈ E(G) := d.isLink.edge_mem
 /-- The reversing operation on darts, which reverses its orientation. -/
 def reverse (d : G.Dart) : G.Dart :=
   match d with
-  | .Fwd x e isLoop => Bck x e isLoop
-  | .Bck x e isLoop => Fwd x e isLoop
+  | .Loop x e isLoop dir => Loop x e isLoop (!dir)
   | .Dir x y e ne isLink => Dir y x e ne.symm isLink.symm
 
 /- The start point of the reverse dart is its end point. -/
@@ -91,12 +84,20 @@ lemma edge_of_reverse (d : G.Dart) : d.reverse.edge = d.edge := by
   cases d <;> trivial
 
 /-- The reverse of a dart is distinct from the dart. -/
-lemma reverse_neq_self (d : G.Dart) : d.reverse ≠ d := by
-  cases d <;> intro hn <;> cases hn; contradiction
+lemma reverse_neq_self (d : G.Dart) : d.reverse ≠ d :=
+  match d with
+  | .Loop x e isLoop dir => by
+    intro hn
+    injection hn with _ _ hdir
+    exact (Bool.eq_not_self dir).mp (id (Eq.symm hdir))
+  | .Dir x y e ne isLink => by
+    intro hn
+    cases hn
+    exact ne (Eq.refl x)
 
 /- The reverse of the reverse of a dart is the dart itself. -/
 lemma reverse_of_reverse (d : G.Dart) : d.reverse.reverse = d := by
-  cases d <;> rfl
+  cases d <;> rw [reverse, reverse]; rw [Bool.not_not]
 
 end Dart
 
@@ -109,22 +110,8 @@ lemma dart_of_edge (e : E(G)) : ∃ d : G.Dart, d.edge = e := by
   have ⟨x, y, isLink⟩ := (G.edge_mem_iff_exists_isLink e).mp he
   by_cases eq : x = y
   . cases eq
-    exists Dart.Fwd x e isLink
+    exists Dart.Loop x e isLink true
   . exists Dart.Dir x y e eq isLink
-
-/- Helper properties on Graph.IsLoopAt. -/
-private lemma loop_vertex_eq (hx : G.IsLoopAt e x) (hy : G.IsLoopAt e y) : x = y := by
-  cases IsLink.left_eq_or_eq hx hy <;> assumption
-
-private lemma loop_vertex_left_eq (hx : G.IsLoopAt e x) (hy : G.IsLink e y z) : x = y := by
-  rcases IsLink.eq_and_eq_or_eq_and_eq hx hy with ⟨hxy, hxz⟩ | ⟨hxz, hxy⟩
-  . exact hxy
-  . exact hxy
-
-private lemma loop_vertex_right_eq (hx : G.IsLoopAt e x) (hy : G.IsLink e y z) : x = z := by
-  rcases IsLink.eq_and_eq_or_eq_and_eq hx hy with ⟨hxy, hxz⟩ | ⟨hxz, hxy⟩
-  . exact hxz
-  . exact hxz
 
 /- Two darts are equal or reverse of one another if they have the same edge. -/
 lemma edge_dart_eq {d₁ d₂ : G.Dart} (h : d₁.edge = d₂.edge) : d₁ = d₂ ∨ d₁ = d₂.reverse := by
@@ -133,35 +120,36 @@ lemma edge_dart_eq {d₁ d₂ : G.Dart} (h : d₁.edge = d₂.edge) : d₁ = d�
   . right
 
     -- cross-case analysis: destruct d₁, d₂, and h to get us started
-    rcases d₁ with ⟨x₁, e₁, isLoop₁⟩ | ⟨x₁, e₁, isLoop₁⟩ | ⟨x₁, y₁, e₁, ne₁, isLink₁⟩
-    all_goals rcases d₂ with ⟨x₂, e₂, isLoop₂⟩ | ⟨x₂, e₂, isLoop₂⟩ | ⟨x₂, y₂, e₂, ne₂, isLink₂⟩
+    rcases d₁ with ⟨x₁, e₁, isLoop₁, fwd₁⟩ | ⟨x₁, y₁, e₁, ne₁, isLink₁⟩
+    all_goals rcases d₂ with ⟨x₂, e₂, isLoop₂, fwd₂⟩ | ⟨x₂, y₂, e₂, ne₂, isLink₂⟩
     all_goals cases h
 
-     -- discharge Fwd/Bck, Fwd/Bck cases (4)
-    all_goals try
-      cases loop_vertex_eq isLoop₁ isLoop₂
-      trivial
-
-     -- discharge Fwd/Bck, Dir cases (2)
-    all_goals try
-      cases loop_vertex_left_eq isLoop₁ isLink₂
-      cases loop_vertex_right_eq isLoop₁ isLink₂
-      trivial
-
-    -- discharge Dir, Fwd/Bck cases (2)
-    all_goals try
-      cases loop_vertex_left_eq isLoop₂ isLink₁
-      cases loop_vertex_right_eq isLoop₂ isLink₁
-      trivial
-
-    -- discharge Dir, Dir case (1)
-    rcases IsLink.eq_and_eq_or_eq_and_eq isLink₁ isLink₂ with ⟨hxy, hxz⟩ | ⟨hxz, hxy⟩
-    . cases hxy
-      cases hxz
-      trivial
-    . cases hxy
-      cases hxz
-      trivial
+    . rcases IsLink.left_eq_or_eq isLoop₁ isLoop₂ with ⟨hxx⟩ | ⟨hxx⟩
+      all_goals
+        cases hxx
+        congr
+        apply Bool.eq_not.mpr
+        intro rfl
+        apply eq
+        rfl
+    . rcases IsLink.eq_and_eq_or_eq_and_eq isLoop₁ isLink₂ with ⟨hxx, hxy⟩ | ⟨hxy, hxx⟩
+      all_goals
+        exfalso
+        apply ne₂
+        exact (Eq.trans hxx.symm hxy)
+    . rcases IsLink.eq_and_eq_or_eq_and_eq isLink₁ isLoop₂ with ⟨hxx, hxy⟩ | ⟨hxx, hxy⟩
+      all_goals
+        exfalso
+        apply ne₁
+        exact (Eq.trans hxx hxy.symm)
+    . rw [Dart.reverse]
+      rcases IsLink.eq_and_eq_or_eq_and_eq isLink₁ isLink₂ with ⟨hxx, hyy⟩ | ⟨hxy, hyx⟩
+      . cases hxx
+        cases hyy
+        exfalso
+        apply eq
+        rfl
+      . congr
 
 /- Two darts have the same edge if they are equal or reverse of one another. -/
 lemma edge_dart_eq' {d₁ d₂ : G.Dart} (h : d₁ = d₂ ∨ d₁ = d₂.reverse) : d₁.edge = d₂.edge := by
@@ -180,17 +168,16 @@ carried by this edge.-/
 lemma Inc_iff_exists_dart {x : α} {e : β} :
   G.Inc e x ↔ ∃ d : G.Dart, d.fst = x ∧ d.edge = e := by
   constructor
-  . intro ⟨y, isLink⟩
-    by_cases eq : x = y
-    . cases eq
-      exists Dart.Fwd x e isLink
-    . exists Dart.Dir x y e eq isLink
-  . intro ⟨d, hfst, hedge⟩
-    all_goals cases hfst; cases hedge
-    rcases d with ⟨x, e, isLoop⟩ | ⟨x, e, isLoop⟩ | ⟨x, y, e, ne, isLink⟩
-    . exists x
-    . exists x
-    . exists y
+  . intro ⟨y, he⟩
+    by_cases isLoop : x = y
+    . exists Dart.Loop y e (isLoop ▸ he) true
+      exact And.intro isLoop.symm rfl
+    . exists Dart.Dir x y e isLoop he
+  . intro ⟨d, ⟨h₁, h₂⟩⟩
+    unfold Graph.Inc
+    exists d.snd
+    rw [<- h₁, <- h₂]
+    exact Dart.isLink d
 
 /-- The IsDartLink relation is the dart version of IsLink, meaning `IsDartLink d x y`
 iff `d` is a dart starting at `x` and ending at `y`.-/
