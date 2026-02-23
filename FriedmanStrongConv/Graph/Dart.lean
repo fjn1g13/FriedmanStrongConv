@@ -139,14 +139,9 @@ def toDart [DecidableEq α] {x y : α} {e : β} (h : G.IsLink e x y) : G.Dart :=
     exact Dart.Fwd x e hx
   . exact Dart.Dir x y e eq h
 
-lemma eq_of_loopAt_isLink (h₁ : G.IsLoopAt e x) (h₂ : G.IsLink e x y) : x = y := by
-  rcases G.eq_or_eq_of_isLink_of_isLink h₂.symm h₁ with h | h
-  all_goals exact h.symm
-
 /-- Two darts have the same edge iff they are equal or reverse of one another. -/
 lemma edge_dart_eq_iff {d₁ d₂ : G.Dart} (hedge : d₁.edge = d₂.edge) : d₁ = d₂ ∨ d₁ = d₂.reverse := by
-  rcases G.eq_or_eq_of_isLink_of_isLink d₁.isLink (hedge ▸ d₂.isLink) with hxx | hxy
-  <;> rcases G.eq_or_eq_of_isLink_of_isLink d₁.isLink.symm (hedge ▸ d₂.isLink.symm) with hyx | hyy
+  rcases IsLink.eq_and_eq_or_eq_and_eq d₁.isLink (hedge ▸ d₂.isLink) with ⟨hxx, hyy⟩ | ⟨hxy, hyx⟩
   <;> rcases d₁ with ⟨x₁, y₁, e₁, ne₁, h₁⟩ | ⟨x₁, e₁, h₁⟩ | ⟨x₁, e₁, h₁⟩
   <;> rcases d₂ with ⟨x₂, y₂, e₂, ne₂, h₂⟩ | ⟨x₂, e₂, h₂⟩ | ⟨x₂, e₂, h₂⟩
   all_goals
@@ -156,10 +151,6 @@ lemma edge_dart_eq_iff {d₁ d₂ : G.Dart} (hedge : d₁.edge = d₂.edge) : d�
     try left; rfl
     try right; rfl
     try contradiction
-  all_goals
-    exfalso
-    try exact ne₂ (eq_of_loopAt_isLink h₁ h₂)
-    try exact (Ne.symm ne₂) (eq_of_loopAt_isLink h₁ h₂.symm)
 
 /-- An edge is incident to a vertex iff there is a dart starting at this vertex
 carried by this edge.-/
