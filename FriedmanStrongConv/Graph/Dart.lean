@@ -52,6 +52,13 @@ def edge (d : G.Dart) : β :=
   | .Fwd _ e _ => e
   | .Bck _ e _ => e
 
+/-- The map `isBck` extracts indicates whether the edge is an instance of Dart.Bck. -/
+def isBck (d : G.Dart) : Bool :=
+  match d with
+  | .Dir _ _ _ _ _ => false
+  | .Fwd _ _ _ => false
+  | .Bck _ _ _ => true
+
 /-- `isLink` extracts the link relation from the definition of the dart. -/
 lemma isLink (d : G.Dart) : G.IsLink d.edge d.fst d.snd :=
   match d with
@@ -66,31 +73,36 @@ lemma snd_mem (d : G.Dart) : d.snd ∈ V(G) := d.isLink.right_mem
 lemma edge_mem (d : G.Dart) : d.edge ∈ E(G) := d.isLink.edge_mem
 
 /-- Two darts are equal iff they share their start points, end points and edges.-/
-lemma eq_iff {d₁ d₂ : G.Dart} : (d₁ = d₂) ↔ (d₁.fst = d₂.fst ∧ d₁.snd = d₂.snd ∧ d₁.edge = d₂.edge)
+lemma eq_iff {d₁ d₂ : G.Dart} : (d₁ = d₂) ↔ (d₁.fst = d₂.fst ∧ d₁.snd = d₂.snd ∧ d₁.edge = d₂.edge ∧ d₁.isBck = d₂.isBck)
   := by
   constructor
   · intro heq
     rw [heq]
-    exact ⟨rfl, rfl, rfl⟩
-  · sorry
+    exact ⟨rfl, rfl, rfl, rfl⟩
+  · rcases d₁ with ⟨x₁, y₁, e₁, ne₁, h₁⟩ | ⟨x₁, e₁, h₁⟩ | ⟨x₁, e₁, h₁⟩
+    <;> rcases d₂ with ⟨x₂, y₂, e₂, ne₂, h₂⟩ | ⟨x₂, e₂, h₂⟩ | ⟨x₂, e₂, h₂⟩
+    all_goals
+      intro ⟨hfst, hsnd, hedge, hbck⟩
+      cases hfst
+      cases hsnd
+      cases hedge
+      first | rfl | contradiction
 
 /-- If two darts share their edge and start point then they are equal. -/
-lemma fst_edge_unique {d₁ d₂ : G.Dart} (h₁ : d₁.fst = d₂.fst) (he : d₁.edge = d₂.edge) : d₁ = d₂ := by
-  apply eq_iff.2
-  constructor
-  · exact h₁
-  · constructor
-    · have h : G.IsLink d₁.edge d₁.fst d₂.snd := by rw [he, h₁]; exact d₂.isLink
-      exact IsLink.right_unique d₁.isLink h
-    · exact he
+lemma fst_edge_unique {d₁ d₂ : G.Dart} (hfst : d₁.fst = d₂.fst) (hedge : d₁.edge = d₂.edge) (hbck : d₁.isBck = d₂.isBck) : d₁ = d₂ := by
+  apply eq_iff.mpr
+  apply And.intro hfst
+  apply And.intro (IsLink.right_unique d₁.isLink (hedge ▸ hfst ▸ d₂.isLink))
+  apply And.intro hedge
+  exact hbck
 
 /-- If two darts share their edge and end point then they are equal. -/
-lemma snd_edge_unique {d₁ d₂ : G.Dart} (h₂ : d₁.snd = d₂.snd) (he : d₁.edge = d₂.edge) : d₁ = d₂ := by
-  apply eq_iff.2
-  constructor
-  · have h : G.IsLink d₁.edge d₂.fst d₁.snd := by rw [he, h₂]; exact d₂.isLink
-    exact IsLink.left_unique d₁.isLink h
-  · exact ⟨h₂, he⟩
+lemma snd_edge_unique {d₁ d₂ : G.Dart} (hsnd : d₁.snd = d₂.snd) (hedge : d₁.edge = d₂.edge) (hbck : d₁.isBck = d₂.isBck) : d₁ = d₂ := by
+  apply eq_iff.mpr
+  apply And.intro (IsLink.left_unique d₁.isLink (hedge ▸ hsnd ▸ d₂.isLink))
+  apply And.intro hsnd
+  apply And.intro hedge
+  exact hbck
 
 /-- The reversing operation on darts, which reverses its orientation. -/
 def reverse (d : G.Dart) : G.Dart :=
@@ -127,19 +139,27 @@ def toDart [DecidableEq α] {x y : α} {e : β} (h : G.IsLink e x y) : G.Dart :=
     exact Dart.Fwd x e hx
   . exact Dart.Dir x y e eq h
 
-/-- Two darts have the same edge iff they are equal or reverse of one another. -/
-lemma edge_dart_eq_iff {d₁ d₂ : G.Dart} (h : d₁.edge = d₂.edge) : d₁ = d₂ ∨ d₁ = d₂.reverse := by
-  by_cases heq : d₁.fst = d₂.fst
-  · left
-    exact Dart.fst_edge_unique heq h
-  · right
-    apply Dart.fst_edge_unique
-    · rw [Dart.fst_of_reverse]
-      have this : G.IsLink d₁.edge d₂.fst d₂.snd := by rw [h]; exact d₂.isLink
-      apply IsLink.left_eq_of_right_ne d₁.isLink this heq
-    . rw [Dart.edge_of_reverse]
-      exact h
+lemma eq_of_loopAt_isLink (h₁ : G.IsLoopAt e x) (h₂ : G.IsLink e x y) : x = y := by
+  rcases G.eq_or_eq_of_isLink_of_isLink h₂.symm h₁ with h | h
+  all_goals exact h.symm
 
+/-- Two darts have the same edge iff they are equal or reverse of one another. -/
+lemma edge_dart_eq_iff {d₁ d₂ : G.Dart} (hedge : d₁.edge = d₂.edge) : d₁ = d₂ ∨ d₁ = d₂.reverse := by
+  rcases G.eq_or_eq_of_isLink_of_isLink d₁.isLink (hedge ▸ d₂.isLink) with hxx | hxy
+  <;> rcases G.eq_or_eq_of_isLink_of_isLink d₁.isLink.symm (hedge ▸ d₂.isLink.symm) with hyx | hyy
+  <;> rcases d₁ with ⟨x₁, y₁, e₁, ne₁, h₁⟩ | ⟨x₁, e₁, h₁⟩ | ⟨x₁, e₁, h₁⟩
+  <;> rcases d₂ with ⟨x₂, y₂, e₂, ne₂, h₂⟩ | ⟨x₂, e₂, h₂⟩ | ⟨x₂, e₂, h₂⟩
+  all_goals
+    first | cases hxx | cases hxy
+    first | cases hyx | cases hyy
+    cases hedge
+    try left; rfl
+    try right; rfl
+    try contradiction
+  all_goals
+    exfalso
+    try exact ne₂ (eq_of_loopAt_isLink h₁ h₂)
+    try exact (Ne.symm ne₂) (eq_of_loopAt_isLink h₁ h₂.symm)
 
 /-- An edge is incident to a vertex iff there is a dart starting at this vertex
 carried by this edge.-/
