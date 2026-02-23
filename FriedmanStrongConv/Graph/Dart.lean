@@ -180,6 +180,6 @@ def IsDartLink (d : G.Dart) (x y : α) := x = d.fst ∧ y = d.snd
 lemma IsDartLink.symm {d : G.Dart} (h : G.IsDartLink d x y) : G.IsDartLink d.reverse y x := by
   constructor
   · rw [Dart.fst_of_reverse]
-    exact h.2
+    exact h.right
   · rw [Dart.snd_of_reverse]
-    exact h.1
+    exact h.left
