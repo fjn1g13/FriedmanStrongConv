@@ -112,12 +112,15 @@ def reverse (d : G.Dart) : G.Dart :=
   | .Bck x e h => Fwd x e h
 
 /-- The start point of the reverse dart is its end point. -/
+@[simp]
 lemma fst_of_reverse (d : G.Dart) : d.reverse.fst = d.snd := by cases d <;> trivial
 
 /-- The end point of the reverse dart is its start point. -/
+@[simp]
 lemma snd_of_reverse (d : G.Dart) : d.reverse.snd = d.fst := by cases d <;> trivial
 
 /-- The edge is unchanged upon reversing the dart. -/
+@[simp]
 lemma edge_of_reverse (d : G.Dart) : d.reverse.edge = d.edge := by cases d <;> trivial
 
 /-- The reverse of a dart is distinct from the dart. -/
@@ -125,6 +128,7 @@ lemma reverse_neq_self (d : G.Dart) : d.reverse ≠ d := by
   cases d <;> intro hn <;> cases hn; contradiction
 
 /-- The reverse of the reverse of a dart is the dart itself. -/
+@[simp]
 lemma reverse_of_reverse (d : G.Dart) : d.reverse.reverse = d := by cases d <;> rfl
 
 end Dart
@@ -177,9 +181,20 @@ lemma Inc_iff_exists_dart {x : α} {e : β} :
 iff `d` is a dart starting at `x` and ending at `y`.-/
 def IsDartLink (d : G.Dart) (x y : α) := x = d.fst ∧ y = d.snd
 
-lemma IsDartLink.symm {d : G.Dart} (h : G.IsDartLink d x y) : G.IsDartLink d.reverse y x := by
+-- just playing around
+lemma IsDartLink.symm₁ {d : G.Dart} (h : G.IsDartLink d.reverse y x) : G.IsDartLink d x y := by
+  rcases h with ⟨hfst, hsnd⟩
   constructor
-  · rw [Dart.fst_of_reverse]
-    exact h.right
-  · rw [Dart.snd_of_reverse]
-    exact h.left
+  . exact Dart.snd_of_reverse d ▸ hsnd
+  . exact Dart.fst_of_reverse d ▸ hfst
+
+lemma IsDartLink.symm₂ {d : G.Dart} (h : G.IsDartLink d x y) : G.IsDartLink d.reverse y x := by
+  constructor
+  · exact Dart.fst_of_reverse d ▸ h.right
+  · exact Dart.snd_of_reverse d ▸ h.left
+
+@[simp]
+lemma IsDartLink.symm {d : G.Dart} : G.IsDartLink d.reverse y x ↔ G.IsDartLink d x y := by
+  constructor <;> intro h
+  · exact IsDartLink.symm₁ h
+  . exact IsDartLink.symm₂ h
